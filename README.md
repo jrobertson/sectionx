@@ -25,28 +25,28 @@ The SectionX gem makes it convenient to store and retrieve hierarchical data in 
 
 output:
 <pre>
-<?xml version='1.0' encoding='UTF-8'?>
-<personal>
-  <summary>
-    <title>My Personal Profile</title>
-    <tags>profile personal</tags>
-  </summary>
-  <sections>
-    <section>
-      <summary>
-        <name>John Smith</name>
-        <age>68</age>
-      </summary>
-      <sections/>
-    </section>
-    <section title='Employment'>
-      <summary>
-        <employer>FQM R&S</employer>
-      </summary>
-      <sections/>
-    </section>
-  </sections>
-</personal>
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;personal&gt;
+  &lt;summary&gt;
+    &lt;title&gt;My Personal Profile&lt;/title&gt;
+    &lt;tags&gt;profile personal&lt;/tags&gt;
+  &lt;/summary&gt;
+  &lt;sections&gt;
+    &lt;section&gt;
+      &lt;summary&gt;
+        &lt;name&gt;John Smith&lt;/name&gt;
+        &lt;age&gt;68&lt;/age&gt;
+      &lt;/summary&gt;
+      &lt;sections/&gt;
+    &lt;/section&gt;
+    &lt;section title='Employment'&gt;
+      &lt;summary&gt;
+        &lt;employer&gt;FQM R&S&lt;/employer&gt;
+      &lt;/summary&gt;
+      &lt;sections/&gt;
+    &lt;/section&gt;
+  &lt;/sections&gt;
+&lt;/personal&gt;
 </pre>
 
 ## Resources
