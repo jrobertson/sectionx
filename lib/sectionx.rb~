@@ -4,21 +4,16 @@
 
 require 'line-tree'
 require 'rexle-builder'
-require 'rxfhelper'
 
 
 class SectionX
 
-  attr_reader :summary
-  
   def initialize()
   end
 
   def import(raw_s)
-    
-    raw_buffer, type = RXFHelper.read(raw_s)
 
-    lines = raw_buffer.lines
+    lines = raw_s.lines
     header = lines.shift
     id = header[/id=["']([^"']+)/,1] || 'sectionx'
 
@@ -41,7 +36,6 @@ class SectionX
           label, value = raw_x.split(/\s*:\s*/,2)
           xml.send(label.downcase.gsub(/\s+/,'_'), value)
         end
-        xml.recordx_type 'sectionx'
       end
       xml.sections do
         xml.section do
@@ -67,39 +61,12 @@ class SectionX
       end
     end
 
-    @doc = doc = Rexle.new a2
-    @summary = doc.root.xpath('summary/*')\
-                           .inject({}) {|r,x| r.merge(x.name.to_sym => x.text)}
-    
-    summary_methods = (@summary.keys - self.public_methods)
-    
-    summary_methods.each do |x|
-      
-      instance_eval "
-      
-        def #{x.to_sym}()
-          @summary[:#{x}]
-        end
-      
-        def #{x.to_s}=(v)
-          @summary[:#{x}] = v
-          @doc.root.element('summary/#{x.to_s}').text = v
-        end
-        "      
-    end    
-    self
-  end
-  
-  def recordx_type()
-    @summary[:recordx_type]
-  end  
+    @doc = Rexle.new a2
 
-  def to_xml(options={})
-    @doc.xml(options)
   end
-  
-  def xpath(x)
-    @doc.root.xpath(x)
+
+  def to_xml(options)
+    @doc.xml(options)
   end
 
   private
@@ -145,8 +112,8 @@ age: 68
 Employer: FQM R&S
 EOF
 
-  sx = SectionX.new
-  sx.import s
-  puts sx.to_xml pretty: true
+sx = SectionX.new
+sx.import s
+puts sx.to_xml pretty: true
 
 end
