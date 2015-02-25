@@ -5,6 +5,7 @@
 require 'line-tree'
 require 'rexle-builder'
 require 'rxfhelper'
+require 'recordx'
 
 
 class SectionX
@@ -27,8 +28,15 @@ class SectionX
                                                                 body.strip])
     a = LineTree.new(nested).to_a
 
-    summary = a.shift.flatten(1)
-    summary.shift
+    raw_summary = a.shift.flatten(1)
+    raw_summary.shift
+    
+    h = raw_summary.inject({}) do |r,raw_x|
+      label, value = raw_x.split(/\s*:\s*/,2)
+      r.merge(label.downcase.gsub(/\s+/,'_').to_sym => value)
+    end
+    
+    @summary = RecordX.new h
 
     section1 = a.shift.flatten(1)
     section1.shift
@@ -37,10 +45,7 @@ class SectionX
 
     a2 = xml.send(id) do 
       xml.summary do
-        summary.each do |raw_x| 
-          label, value = raw_x.split(/\s*:\s*/,2)
-          xml.send(label.downcase.gsub(/\s+/,'_'), value)
-        end
+        @summary.each {|label, value| xml.send(label, value) }
         xml.recordx_type 'sectionx'
       end
       xml.sections do
@@ -68,8 +73,6 @@ class SectionX
     end
 
     @doc = doc = Rexle.new a2
-    @summary = doc.root.xpath('summary/*')\
-                           .inject({}) {|r,x| r.merge(x.name.to_sym => x.text)}
     
     summary_methods = (@summary.keys - self.public_methods)
     
@@ -93,6 +96,10 @@ class SectionX
   def recordx_type()
     @summary[:recordx_type]
   end  
+  
+  def save(filepath)
+    File.write filepath, @doc.xml(pretty: true)
+  end
 
   def to_xml(options={})
     @doc.xml(options)
@@ -101,6 +108,12 @@ class SectionX
   def xpath(x)
     @doc.root.xpath(x)
   end
+  
+  def xslt=(value)
+    
+    self.summary.merge!({xslt: value})
+    @xslt = value
+  end    
 
   private
 
