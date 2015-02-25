@@ -10,9 +10,13 @@ require 'recordx'
 
 class SectionX
 
-  attr_reader :summary
+  attr_reader :summary, :sections
   
-  def initialize()
+  def initialize(e=nil)
+    
+    if e then
+      @summary, @sections = parse_root_node e
+    end
   end
 
   def import(raw_s)
@@ -31,12 +35,11 @@ class SectionX
     raw_summary = a.shift.flatten(1)
     raw_summary.shift
     
-    h = raw_summary.inject({}) do |r,raw_x|
+    summary = raw_summary.inject({}) do |r,raw_x|
       label, value = raw_x.split(/\s*:\s*/,2)
       r.merge(label.downcase.gsub(/\s+/,'_').to_sym => value)
     end
     
-    @summary = RecordX.new h
 
     section1 = a.shift.flatten(1)
     section1.shift
@@ -45,7 +48,7 @@ class SectionX
 
     a2 = xml.send(id) do 
       xml.summary do
-        @summary.each {|label, value| xml.send(label, value) }
+        summary.each {|label, value| xml.send(label, value) }
         xml.recordx_type 'sectionx'
       end
       xml.sections do
@@ -73,8 +76,10 @@ class SectionX
     end
 
     @doc = doc = Rexle.new a2
+  
+    @summary, @sections = parse_root_node(doc.root)
     
-    summary_methods = (@summary.keys - self.public_methods)
+    summary_methods = (summary.keys - self.public_methods)
     
     summary_methods.each do |x|
       
@@ -139,6 +144,18 @@ class SectionX
     a.join
   end
 
+  
+  def parse_root_node(e)
+    
+    summary = RecordX.new e.xpath('summary/*')
+    
+    sections =  e.xpath('sections/section').map do |section|
+      SectionX.new section
+    end
+  
+    [summary, sections]
+  end
+  
 end
 
 if __FILE__ == $0 then
