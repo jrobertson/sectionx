@@ -53,31 +53,17 @@ class SectionX
     xml = RexleBuilder.new
 
     a2 = xml.send(id) do 
+      
       xml.summary do
         summary.each {|label, value| xml.send(label, escape(value)) }
         xml.recordx_type 'sectionx'
       end
+      
       xml.sections do
-        xml.section do
-          xml.summary do 
-            section1.each do |raw_x|
-              label, value = raw_x.split(/\s*:\s*/,2)
-              xml.send(label.downcase.gsub(/\s+/,'_'), escape(value))
-            end
-          end
-          xml.sections
-        end
-        a.each do |section_name, raw_rows|
-          xml.section({title: section_name}) do
-            xml.summary do
-              raw_rows.each do |raw_x|
-                label, value = raw_x.split(/\s*:\s*/,2)
-                xml.send(label.downcase.gsub(/\s+/,'_'), escape(value))
-              end
-            end
-            xml.sections
-          end
-        end 
+
+        build_section xml, section1
+        build_section xml, a, {title: section_name}
+
       end
     end
 
@@ -110,7 +96,27 @@ class SectionX
   end    
 
   private
+  
+  def build_section(xml, raw_rows, attr={})
 
+    xml.section(attr) do
+      build_summary xml, raw_rows
+      xml.sections
+    end
+
+  end  
+
+  def build_summary(xml, raw_rows)
+
+    xml.summary do
+      raw_rows.each do |raw_x|
+        label, value = raw_x.split(/\s*:\s*/,2)
+        xml.send(label.downcase.gsub(/\s+/,'_'), escape(value))
+      end
+    end
+
+  end  
+  
   def escape(v)
     v.gsub('&','&amp;').gsub('<','&lt;').gsub('>','&gt;')
   end
@@ -119,7 +125,7 @@ class SectionX
 
     a = s.split(/(?=^\s*#{heading}\s*\w)/).map do |x|
 
-      heading_title = x[/^\s*#{heading}\s*(.*)/,1]
+      heading_title = x[/^\s*#{heading}\s*.*/]
 
       if heading_title then
 
@@ -127,7 +133,8 @@ class SectionX
         body = lines[1..-1].map{|y| y.prepend '  '}.join
         r = indent_heading(body, heading + '#')
 
-        heading_title + "\n" + r
+        heading_title.sub(/#+\s*/,'') + "\n" + r
+
       else
         x
       end
