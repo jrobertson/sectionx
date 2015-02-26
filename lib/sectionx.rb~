@@ -12,10 +12,16 @@ class SectionX
 
   attr_reader :summary, :sections
   
-  def initialize(e=nil)
+  def initialize(x=nil)
     
-    if e then
-      @summary, @sections = parse_root_node e
+    @doc = if x.is_a? String then
+      buffer, _ = RXFHelper.read x
+      Rexle.new buffer
+    elsif x.is_a? Rexle::Element then x      
+    end
+    
+    if @doc then
+      @summary, @sections = parse_root_node @doc.root
     end
   end
 
@@ -48,7 +54,7 @@ class SectionX
 
     a2 = xml.send(id) do 
       xml.summary do
-        summary.each {|label, value| xml.send(label, value) }
+        summary.each {|label, value| xml.send(label, escape(value)) }
         xml.recordx_type 'sectionx'
       end
       xml.sections do
@@ -56,7 +62,7 @@ class SectionX
           xml.summary do 
             section1.each do |raw_x|
               label, value = raw_x.split(/\s*:\s*/,2)
-              xml.send(label.downcase.gsub(/\s+/,'_'), value)
+              xml.send(label.downcase.gsub(/\s+/,'_'), escape(value))
             end
           end
           xml.sections
@@ -66,7 +72,7 @@ class SectionX
             xml.summary do
               raw_rows.each do |raw_x|
                 label, value = raw_x.split(/\s*:\s*/,2)
-                xml.send(label.downcase.gsub(/\s+/,'_'), value)
+                xml.send(label.downcase.gsub(/\s+/,'_'), escape(value))
               end
             end
             xml.sections
@@ -75,26 +81,9 @@ class SectionX
       end
     end
 
-    @doc = doc = Rexle.new a2
-  
-    @summary, @sections = parse_root_node(doc.root)
+    @doc = Rexle.new a2
+    @summary, @sections = parse_root_node(@doc.root)    
     
-    summary_methods = (summary.keys - self.public_methods)
-    
-    summary_methods.each do |x|
-      
-      instance_eval "
-      
-        def #{x.to_sym}()
-          @summary[:#{x}]
-        end
-      
-        def #{x.to_s}=(v)
-          @summary[:#{x}] = v
-          @doc.root.element('summary/#{x.to_s}').text = v
-        end
-        "      
-    end    
     self
   end
   
@@ -122,7 +111,10 @@ class SectionX
 
   private
 
-
+  def escape(v)
+    v.gsub('&','&amp;').gsub('<','&lt;').gsub('>','&gt;')
+  end
+  
   def indent_heading(s, heading='#')
 
     a = s.split(/(?=^\s*#{heading}\s*\w)/).map do |x|
@@ -148,6 +140,22 @@ class SectionX
   def parse_root_node(e)
     
     summary = RecordX.new e.xpath('summary/*')
+    summary_methods = (summary.keys - self.public_methods)
+    
+    summary_methods.each do |x|
+      
+      instance_eval "
+      
+        def #{x.to_sym}()
+          @summary[:#{x}]
+        end
+      
+        def #{x.to_s}=(v)
+          @summary[:#{x}] = v
+          @doc.root.element('summary/#{x.to_s}').text = v
+        end
+        "      
+    end        
     
     sections =  e.xpath('sections/section').map do |section|
       SectionX.new section
