@@ -10,7 +10,7 @@ require 'recordx'
 
 class SectionX
 
-  attr_reader :summary, :sections
+  attr_reader :attributes, :summary, :sections
   
   def initialize(x=nil)
     
@@ -21,7 +21,7 @@ class SectionX
     end
     
     if @doc then
-      @summary, @sections = parse_root_node @doc.root
+      @attributes, @summary, @sections = parse_root_node @doc.root
     end
   end
 
@@ -37,7 +37,7 @@ class SectionX
     nested = indent_heading("# summary\n%s\n# begin\n%s" % [summary,\
                                                                 body.strip])
     a = LineTree.new(nested).to_a
-    puts 'a' + a.inspect
+    
     raw_summary = a.shift
     raw_summary.shift # removes the redundant summary label
     
@@ -64,7 +64,7 @@ class SectionX
     end
 
     @doc = Rexle.new a2
-    @summary, @sections = parse_root_node(@doc.root)    
+    @attributes, @summary, @sections = parse_root_node(@doc.root)    
     
     self
   end
@@ -155,6 +155,7 @@ class SectionX
   
   def parse_root_node(e)
     
+    attributes = e.attributes
     summary = RecordX.new e.xpath('summary/*')
     summary_methods = (summary.keys - self.public_methods)
     
@@ -173,11 +174,20 @@ class SectionX
         "      
     end        
     
-    sections =  e.xpath('sections/section').map do |section|
-      SectionX.new section
-    end
+    a = e.xpath('sections/section')
+    section1 = a.shift
+    sections = {'' => SectionX.new(section1)}
+
+    sections =  a.inject(sections) do |r, section|
+      
+      h = section.attributes
+      name = (h[:id] || h[:title].gsub(/\s+/,'_')).downcase
+      
+      instance_eval "def #{name}() self.sections[:#{name}] end"
+      r.merge(name.downcase.to_sym => SectionX.new(section))
+    end    
   
-    [summary, sections]
+    [attributes, summary, sections]
   end
   
 end

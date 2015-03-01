@@ -154,7 +154,7 @@ class SectionX
 
   
   def parse_root_node(e)
-    
+
     attributes = e.attributes
     summary = RecordX.new e.xpath('summary/*')
     summary_methods = (summary.keys - self.public_methods)
@@ -175,9 +175,16 @@ class SectionX
     end        
     
     a = e.xpath('sections/section')
-    section1 = a.shift
-    sections = {'' => SectionX.new(section1)}
 
+    return [attributes, summary] if a.empty?
+    
+    sections = {}
+    
+    if a[0] and a[0].attributes.empty? then
+      section1 = a.shift
+      sections = {'' => SectionX.new(section1)}
+    end
+    
     sections =  a.inject(sections) do |r, section|
       
       h = section.attributes
