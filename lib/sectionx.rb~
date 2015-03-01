@@ -37,32 +37,28 @@ class SectionX
     nested = indent_heading("# summary\n%s\n# begin\n%s" % [summary,\
                                                                 body.strip])
     a = LineTree.new(nested).to_a
-
-    raw_summary = a.shift.flatten(1)
-    raw_summary.shift
+    puts 'a' + a.inspect
+    raw_summary = a.shift
+    raw_summary.shift # removes the redundant summary label
     
-    summary = raw_summary.inject({}) do |r,raw_x|
-      label, value = raw_x.split(/\s*:\s*/,2)
-      r.merge(label.downcase.gsub(/\s+/,'_').to_sym => value)
-    end
     
-
-    section1 = a.shift.flatten(1)
-    section1.shift
+    section1 = a.shift # get the 1st section
+    section1[0] = nil  # nilify the section heading 'begin'
 
     xml = RexleBuilder.new
 
     a2 = xml.send(id) do 
       
       xml.summary do
-        summary.each {|label, value| xml.send(label, escape(value)) }
+        build_rows xml, raw_summary
         xml.recordx_type 'sectionx'
       end
       
       xml.sections do
 
         build_section xml, section1
-        build_section xml, a, {title: section_name}
+
+        a.each {|raw_rows| build_section xml, raw_rows }
 
       end
     end
@@ -97,23 +93,35 @@ class SectionX
 
   private
   
-  def build_section(xml, raw_rows, attr={})
+  def build_rows(xml, raw_rows)
+    
+    raw_rows.each do |raw_x|
+      label, value = raw_x[0].split(/\s*:\s*/,2)
+      xml.send(label.downcase.gsub(/\s+/,'_'), escape(value))
+    end    
+  end
+  
+  def build_section(xml, raw_rows)
+    
+    section_name  = raw_rows.shift    
 
+    attr = section_name ? {title: section_name} : {}
+    
     xml.section(attr) do
-      build_summary xml, raw_rows
-      xml.sections
+      
+      rows, sections = raw_rows.partition {|x| x.length == 1}
+      build_summary xml, rows
+      
+      xml.sections do
+        sections.each {|section| build_section xml, section }
+      end
     end
 
   end  
 
   def build_summary(xml, raw_rows)
 
-    xml.summary do
-      raw_rows.each do |raw_x|
-        label, value = raw_x.split(/\s*:\s*/,2)
-        xml.send(label.downcase.gsub(/\s+/,'_'), escape(value))
-      end
-    end
+    xml.summary { build_rows xml, raw_rows }
 
   end  
   
@@ -130,7 +138,8 @@ class SectionX
       if heading_title then
 
         lines = x.lines
-        body = lines[1..-1].map{|y| y.prepend '  '}.join
+        body = lines[1..-1]\
+                      .map{|y| y.strip.length > 0 ? y.prepend('  ') : y }.join
         r = indent_heading(body, heading + '#')
 
         heading_title.sub(/#+\s*/,'') + "\n" + r
