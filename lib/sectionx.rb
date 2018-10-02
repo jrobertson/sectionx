@@ -12,7 +12,9 @@ class SectionX
 
   attr_reader :attributes, :summary, :sections
   
-  def initialize(x=nil)
+  def initialize(x=nil, debug: false)
+    
+    @debug = debug
     
     @doc = if x.is_a? String then
       buffer, _ = RXFHelper.read x
@@ -81,6 +83,17 @@ class SectionX
     @doc.xml(options)
   end
   
+  def update(id=nil, h={})
+    
+    puts 'inside update h: ' + h.inspect if @debug
+    xpath = "summary/" + h.keys.first.to_s
+    puts 'xpath: ' + xpath.inspect if @debug
+    e = @doc.root.element(xpath)
+    puts 'e: ' + e.inspect if @debug
+    e.text =  h.values.first if e
+    puts '@doc: ' + @doc.xml if @debug
+  end
+  
   def xpath(x)
     @doc.root.xpath(x)
   end
@@ -103,9 +116,16 @@ class SectionX
   
   def build_section(xml, raw_rows)
     
-    section_name  = raw_rows.shift    
-
-    attr = section_name ? {title: section_name} : {}
+    puts 'raw_rows : ' + raw_rows.inspect
+    raw_section_name  = raw_rows.shift    
+    puts 'section_name : ' + raw_section_name.inspect
+    
+    attr = if raw_section_name then
+      section_name = raw_section_name[/[\w\s]+/]
+      {title: section_name}
+    else
+      {}
+    end
     
     xml.section(attr) do
       
@@ -131,8 +151,8 @@ class SectionX
   
   def indent_heading(s, heading='#')
 
-    a = s.split(/(?=^\s*#{heading}\s*\w)/).map do |x|
-
+    a = s.split(/(?=^\s*#{heading}\s*[\[\w])/).map do |x|
+      puts 'x : ' + x.inspect
       heading_title = x[/^\s*#{heading}\s*.*/]
 
       if heading_title then
@@ -156,24 +176,8 @@ class SectionX
   def parse_root_node(e)
 
     attributes = e.attributes
-    summary = RecordX.new e.xpath('summary/*')
-    summary_methods = (summary.keys - self.public_methods)
-    
-    summary_methods.each do |x|
-      
-      instance_eval "
-      
-        def #{x.to_sym}()
-          @summary[:#{x}]
-        end
-      
-        def #{x.to_s}=(v)
-          @summary[:#{x}] = v
-          @doc.root.element('summary/#{x.to_s}').text = v
-        end
-        "      
-    end        
-    
+    summary = RecordX.new e.xpath('summary/*'), self, debug: @debug
+   
     a = e.xpath('sections/section')
 
     return [attributes, summary] if a.empty?
@@ -182,7 +186,7 @@ class SectionX
     
     if a[0] and a[0].attributes.empty? then
       section1 = a.shift
-      sections = {'' => SectionX.new(section1)}
+      sections = {'' => SectionX.new(section1, debug: true)}
     end
     
     sections =  a.inject(sections) do |r, section|
@@ -191,7 +195,7 @@ class SectionX
       name = (h[:id] || h[:title].gsub(/\s+/,'_')).downcase
       
       instance_eval "def #{name}() self.sections[:#{name}] end"
-      r.merge(name.downcase.to_sym => SectionX.new(section))
+      r.merge(name.to_sym => SectionX.new(section, debug: @debug))
     end    
   
     [attributes, summary, sections]
