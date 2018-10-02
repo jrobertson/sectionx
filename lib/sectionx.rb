@@ -15,6 +15,7 @@ class SectionX
   def initialize(x=nil, debug: false)
     
     @debug = debug
+    puts 'initialize() x: ' + x.inspect if @debug
     
     @doc = if x.is_a? String then
       buffer, _ = RXFHelper.read x
@@ -71,6 +72,19 @@ class SectionX
     self
   end
   
+  def new_section(raw_title)
+    
+    doc =  Rexle.new("<section title='#{raw_title}'><summary/>" + 
+                     "<sections/></section>")
+    @doc.root.element('sections').add doc.root
+    title = raw_title.gsub(/\s+/,'_').downcase.to_sym
+    @sections[title] = SectionX.new \
+        @doc.root.element('sections').elements.last, debug: @debug
+    
+    define_singleton_method(title) { self.sections[title] }
+    
+  end
+  
   def recordx_type()
     @summary[:recordx_type]
   end  
@@ -86,11 +100,18 @@ class SectionX
   def update(id=nil, h={})
     
     puts 'inside update h: ' + h.inspect if @debug
-    xpath = "summary/" + h.keys.first.to_s
-    puts 'xpath: ' + xpath.inspect if @debug
-    e = @doc.root.element(xpath)
+    summary = @doc.root.element('summary')
+    name = h.keys.first.to_s
+    puts 'xpath: ' + name.inspect if @debug
+    e = summary.element(name)
     puts 'e: ' + e.inspect if @debug
-    e.text =  h.values.first if e
+    
+    if e then
+      e.text =  h.values.first 
+    else
+      summary.add Rexle::Element.new(name).add_text(h.values.first)
+    end
+    
     puts '@doc: ' + @doc.xml if @debug
   end
   
@@ -180,7 +201,7 @@ class SectionX
    
     a = e.xpath('sections/section')
 
-    return [attributes, summary] if a.empty?
+    return [attributes, summary, {}] if a.empty?
     
     sections = {}
     
@@ -192,10 +213,11 @@ class SectionX
     sections =  a.inject(sections) do |r, section|
       
       h = section.attributes
-      name = (h[:id] || h[:title].gsub(/\s+/,'_')).downcase
+      name = (h[:id] || h[:title].gsub(/\s+/,'_')).downcase.to_sym
       
-      instance_eval "def #{name}() self.sections[:#{name}] end"
-      r.merge(name.to_sym => SectionX.new(section, debug: @debug))
+      obj_section = SectionX.new(section, debug: @debug)
+      define_singleton_method(name) { obj_section }
+      r.merge(name => obj_section)
     end    
   
     [attributes, summary, sections]
