@@ -27,6 +27,12 @@ class SectionX
       @attributes, @summary, @sections = parse_root_node @doc.root
     end
   end
+  
+  def fetch(rxpath)
+    list = rxpath.split('/').map {|x| x.gsub(/\s+/,'_').downcase.to_sym}
+    find_section(list)    
+  end
+    
 
   def import(raw_s)
     
@@ -170,6 +176,26 @@ class SectionX
     v.gsub('&','&amp;').gsub('<','&lt;').gsub('>','&gt;')
   end
   
+  # Returns the XML element
+  #
+  def find_section(a)
+
+    section = a.shift
+
+    found = @doc.root.xpath('sections/section').find do |e|
+      title = e.attributes[:title]
+      title.gsub(/\s+/,'_').downcase.to_sym == section if title
+    end
+    
+    return unless found
+
+    if a.length > 1 then
+      found.find_section(a)
+    else
+      a.length > 0 ? found.element('summary/' + a[0].to_s) : found
+    end
+  end  
+  
   def indent_heading(s, heading='#')
 
     a = s.split(/(?=^\s*#{heading}\s*[\[\w])/).map do |x|
@@ -222,6 +248,8 @@ class SectionX
   
     [attributes, summary, sections]
   end
+  
+
   
 end
 
