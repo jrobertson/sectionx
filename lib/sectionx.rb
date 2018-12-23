@@ -83,6 +83,10 @@ class SectionX
     self
   end
   
+  def method_missing(method_name, *args)
+    self.text(method_name)
+  end
+  
   def new_section(raw_title)
     
     doc =  Rexle.new("<section title='#{raw_title}'><summary/>" + 
