@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'sectionx'
-  s.version = '0.4.4'
+  s.version = '0.4.5'
   s.summary = 'Makes it convenient to store and retrieve hierarchical data ' + 
       'in an XML format known as SectionX'
   s.authors = ['James Robertson']

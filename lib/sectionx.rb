@@ -9,13 +9,14 @@ require 'recordx'
 
 
 class SectionX
+  using ColouredText
 
   attr_reader :attributes, :summary, :sections
   
   def initialize(x=nil, debug: false)
     
     @debug = debug
-    puts 'initialize() x: ' + x.inspect if @debug
+    puts ('initialize() x: ' + x.inspect).debug if @debug
     
     @doc = if x.is_a? String then
       buffer, _ = RXFHelper.read x
@@ -26,6 +27,10 @@ class SectionX
     if @doc then
       @attributes, @summary, @sections = parse_root_node @doc.root
     end
+  end
+  
+  def element(s)
+    @doc.root.element(s)
   end
   
   def fetch(rxpath)
@@ -98,6 +103,10 @@ class SectionX
   def save(filepath)
     File.write filepath, @doc.xml(pretty: true)
   end
+  
+  def text(s)
+    @doc.root.element("//%s/text()" % s.to_s).unescape    
+  end
 
   def to_xml(options={})
     @doc.xml(options)
@@ -143,9 +152,9 @@ class SectionX
   
   def build_section(xml, raw_rows)
     
-    puts 'raw_rows : ' + raw_rows.inspect
+    puts ('raw_rows : ' + raw_rows.inspect).debug if @debug
     raw_section_name  = raw_rows.shift    
-    puts 'section_name : ' + raw_section_name.inspect
+    puts ('section_name : ' + raw_section_name.inspect).debug if @debug
     
     attr = if raw_section_name then
       section_name = raw_section_name[/[\w\s]+/]
@@ -181,11 +190,7 @@ class SectionX
   def find_section(a)
 
     section = a.shift
-
-    found = @doc.root.xpath('sections/section').find do |e|
-      title = e.attributes[:title]
-      title.gsub(/\s+/,'_').downcase.to_sym == section if title
-    end
+    found = @sections[section]
     
     return unless found
 
