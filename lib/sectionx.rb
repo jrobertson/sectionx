@@ -8,14 +8,28 @@ require 'rxfhelper'
 require 'recordx'
 
 
+module RegGem
+
+  def self.register()
+'
+hkey_gems
+  doctype
+    sectionx
+      require sectionx
+      class SectionX
+      media_type sectionx
+'      
+  end
+end
+
 class SectionX
   using ColouredText
 
   attr_reader :attributes, :summary, :sections
   
-  def initialize(x=nil, debug: false)
+  def initialize(x=nil, nested: false, debug: false)
     
-    @debug = debug
+    @nested, @debug = nested, debug
     puts ('initialize() x: ' + x.inspect).debug if @debug
     
     @doc = if x.is_a? String then
@@ -25,6 +39,7 @@ class SectionX
     end
     
     if @doc then
+      puts ('@doc.root: ' + @doc.root.xml.inspect).debug if @debug
       @attributes, @summary, @sections = parse_root_node @doc.root
     end
   end
@@ -157,6 +172,7 @@ class SectionX
   def build_section(xml, raw_rows)
     
     puts ('raw_rows : ' + raw_rows.inspect).debug if @debug
+    
     raw_section_name  = raw_rows.shift    
     puts ('section_name : ' + raw_section_name.inspect).debug if @debug
     
@@ -170,10 +186,33 @@ class SectionX
     xml.section(attr) do
       
       rows, sections = raw_rows.partition {|x| x.length == 1}
-      build_summary xml, rows
+      puts ('rows: ' + rows.inspect).debug if @debug
       
-      xml.sections do
-        sections.each {|section| build_section xml, section }
+      a = rows.flatten.map {|x|  x[/[^:]+/].lstrip}
+      index = a[1..-1].index(a.first)
+      puts ('index: ' + index.inspect).debug if @debug
+
+      if index then
+
+        xml.sections do
+          a2 = rows.each_slice(index+1).to_a
+          a2.each do |section|
+            puts ('section_: ' + section.inspect) if @debug
+            section.insert 0, nil
+            build_section xml, section
+          end
+        end
+        
+      
+      else
+        build_summary xml, rows
+        
+        # are these rowx sections or regular sections?
+        puts ('sections: ' + sections.inspect).debug if @debug
+        
+        xml.sections do
+          sections.each {|section| build_section xml, section }
+        end
       end
     end
 
@@ -231,6 +270,8 @@ class SectionX
   
   def parse_root_node(e)
 
+    puts ('e: ' + e.xml.inspect).debug if @debug
+    
     attributes = e.attributes
     summary = RecordX.new e.xpath('summary/*'), self, debug: @debug
    
@@ -238,19 +279,25 @@ class SectionX
 
     return [attributes, summary, {}] if a.empty?
     
+    
+    if @nested and a[0].attributes.empty? then
+      sections = a.map {|x| SectionX.new(x, debug: @debug)}
+      return [attributes, summary, sections]
+    end
+        
     sections = {}
     
     if a[0] and a[0].attributes.empty? then
       section1 = a.shift
-      sections = {'' => SectionX.new(section1, debug: true)}
+      sections = {'' => SectionX.new(section1, debug: @debug)}
     end
     
     sections =  a.inject(sections) do |r, section|
       
       h = section.attributes
-      name = (h[:id] || h[:title].gsub(/\s+/,'_')).downcase.to_sym
+      name = (h[:id] || h[:title] || '').gsub(/\s+/,'_').downcase.to_sym
       
-      obj_section = SectionX.new(section, debug: @debug)
+      obj_section = SectionX.new(section, debug: @debug, nested: true)
       define_singleton_method(name) { obj_section }
       r.merge(name => obj_section)
     end    
